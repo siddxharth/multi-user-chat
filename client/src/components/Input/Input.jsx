@@ -7,9 +7,11 @@ export default function Input({
     isRequired = false,
     value = "",
     onChange = () => {},
+    onInput = () => {},
+    disabled = false,
 }) {
     return (
-        <div className="w-1/2">
+        <div className="w-full">
             <label
                 htmlFor={name}
                 className="block text-sm font-medium text-gray-900"
@@ -24,6 +26,8 @@ export default function Input({
                 required={isRequired}
                 value={value}
                 onChange={onChange}
+                onInput={onInput}
+                disabled={disabled}
             />
         </div>
     );

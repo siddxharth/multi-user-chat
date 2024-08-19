@@ -16,24 +16,30 @@ export default function Form() {
             <h2 className="text-lg text-gray-700 font-light mb-10">
                 Log in to get started!
             </h2>
-            <Input
-                label="Username"
-                type="text"
-                placeholder="johndoe123"
-                className="mb-6"
-                isRequired={true}
-                value={data.username}
-                onChange={(e) => setData({ ...data, username: e.target.value })}
-            />
-            <Input
-                label="Password"
-                type="password"
-                placeholder="Password"
-                className="mb-6"
-                isRequired={true}
-                value={data.password}
-                onChange={(e) => setData({ ...data, password: e.target.value })}
-            />
+            <div className="w-1/2">
+                <Input
+                    label="Username"
+                    type="text"
+                    placeholder="johndoe123"
+                    className="mb-6"
+                    isRequired={true}
+                    value={data.username}
+                    onChange={(e) =>
+                        setData({ ...data, username: e.target.value })
+                    }
+                />
+                <Input
+                    label="Password"
+                    type="password"
+                    placeholder="Password"
+                    className="mb-6"
+                    isRequired={true}
+                    value={data.password}
+                    onChange={(e) =>
+                        setData({ ...data, password: e.target.value })
+                    }
+                />
+            </div>
             <Button label="Log In " className="mt-2" onClick={() => {}} />
             <p className="mt-2">
                 {`Don't have an account?`}{" "}
