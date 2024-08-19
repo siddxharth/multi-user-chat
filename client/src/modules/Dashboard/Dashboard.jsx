@@ -2,6 +2,7 @@ import { useState } from "react";
 import User from "../../assets/user.svg";
 import Input from "../../components/Input/Input";
 import Button from "../../components/Button/Button";
+import { useNavigate } from "react-router-dom";
 
 const contactsStorage = [
     {
@@ -84,6 +85,7 @@ const contactsStorage = [
 ];
 
 export default function Dashboard() {
+    const navigate = useNavigate();
     const [search, setSearch] = useState("");
     const [message, setMessage] = useState("");
     const [contacts, setContacts] = useState(contactsStorage);
@@ -176,7 +178,14 @@ export default function Dashboard() {
                         ))}
                 </div>
                 <div className="flex flex-row justify-center sticky bottom-0 bg-secondary p-4 z-10 items-center border-t-2">
-                    <Button label="Log Out" className="w-full" />
+                    <Button
+                        label="Log Out"
+                        className="w-full"
+                        onClick={() => {
+                            localStorage.removeItem("chat_user_tkn");
+                            navigate("/login");
+                        }}
+                    />
                 </div>
             </div>
             {activeUser ? (
@@ -227,17 +236,19 @@ export default function Dashboard() {
                     </div>
                     <div className="px-2">
                         <hr />
-                        <Input
-                            type="text"
-                            placeholder="Type your message..."
-                            value={message}
-                            onChange={(e) => {
-                                setMessage(e.target.value);
-                                handleTyping(); // Trigger typing indicator
-                            }}
-                            disabled={!activeUser.active}
-                            className="w-full border rounded h-10 p-2 my-2 focus:outline-primary"
-                        />
+                        <div className="flex items-center px-2">
+                            <Input
+                                type="text"
+                                placeholder="Type your message..."
+                                value={message}
+                                onChange={(e) => {
+                                    setMessage(e.target.value);
+                                    handleTyping(); // Trigger typing indicator
+                                }}
+                                className="w-full border rounded h-10 p-2 my-2 focus:outline-primary"
+                            />
+                            <Button label="Send" className="ml-2" />
+                        </div>
                     </div>
                 </div>
             ) : (

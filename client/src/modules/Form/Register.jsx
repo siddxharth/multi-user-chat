@@ -1,16 +1,60 @@
 import { useState } from "react";
+import axios from "axios"; // Import Axios
 
 import Button from "../../components/Button/Button";
 import Input from "../../components/Input/Input";
 
+import { NavLink } from "react-router-dom";
+
 export default function Form() {
     const [data, setData] = useState({
-        fullname: "",
+        name: "",
         username: "",
         password: "",
     });
+
+    async function handleRegistration(e) {
+        e.preventDefault();
+        try {
+            const response = await axios.post(
+                "http://localhost:3001/register",
+                {
+                    name: data.name,
+                    username: data.username,
+                    password: data.password,
+                }
+            );
+
+            console.log("Registration successful:", response.data);
+            // Optionally redirect or update UI on successful registration
+        } catch (error) {
+            if (error.response) {
+                // Request was made and server responded with a status code
+                console.error(
+                    "Registration failed:",
+                    error.response.data.message
+                );
+                // Optionally show error message to the user
+            } else if (error.request) {
+                // Request was made but no response was received
+                console.error("No response received:", error.request);
+                // Optionally show error message to the user
+            } else {
+                // Something happened in setting up the request
+                console.error(
+                    "An error occurred during registration:",
+                    error.message
+                );
+                // Optionally show error message to the user
+            }
+        }
+    }
+
     return (
-        <form className="bg-white w-[600px] h-[500px] border shadow-md rounded-lg flex flex-col justify-center items-center">
+        <form
+            onSubmit={handleRegistration}
+            className="bg-white w-[600px] h-[500px] border shadow-md rounded-lg flex flex-col justify-center items-center"
+        >
             <h1 className="text-4xl font-extrabold text-primary">Welcome!</h1>
             <h2 className="text-lg text-gray-700 font-light mb-10">
                 Sign up to get started!
@@ -22,10 +66,8 @@ export default function Form() {
                     placeholder="John Doe"
                     className="mb-6"
                     isRequired={true}
-                    value={data.fullname}
-                    onChange={(e) =>
-                        setData({ ...data, fullname: e.target.value })
-                    }
+                    value={data.name}
+                    onChange={(e) => setData({ ...data, name: e.target.value })}
                 />
                 <Input
                     label="Username"
@@ -50,15 +92,15 @@ export default function Form() {
                     }
                 />
             </div>
-            <Button label="Sign Up " className="mt-2" onClick={() => {}} />
+            <Button type="submit" label="Sign Up " className="mt-2" />
             <p className="mt-2">
                 Already have an account?{" "}
-                <a
-                    href="/login"
+                <NavLink
+                    to="/login"
                     className="text-primary cursor-pointer underline"
                 >
                     Log In
-                </a>
+                </NavLink>
             </p>
         </form>
     );

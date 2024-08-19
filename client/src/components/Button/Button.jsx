@@ -1,5 +1,5 @@
 export default function Button({
-    type = "button",
+    type = "",
     label = "Button",
     className = "",
     disabled = false,
