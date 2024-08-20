@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import User from "../../assets/user.svg";
 import Input from "../../components/Input/Input";
 import Button from "../../components/Button/Button";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { jwtDecode } from "jwt-decode"; // Corrected import
+import { jwtDecode } from "jwt-decode";
+import { io } from "socket.io-client";
 
 export default function Dashboard() {
     const [search, setSearch] = useState("");
@@ -14,6 +15,38 @@ export default function Dashboard() {
     const [currentUser, setCurrentUser] = useState(null);
     const [conversationId, setConversationId] = useState(null);
     const [messages, setMessages] = useState([]);
+    const [typing, setTyping] = useState(false);
+    const messageRef = useRef(null);
+
+    const [socket, setSocket] = useState(null);
+
+    useEffect(() => {
+        setSocket(io("http://localhost:3003"));
+    }, []);
+
+    useEffect(() => {
+        socket?.emit("addUser", currentUser);
+        socket?.on("getUsers", (users) => {
+            console.log("activeUsers :>> ", users);
+        });
+        socket?.on("getMessage", (data) => {
+            setMessages((prevMessages) => [...prevMessages, data]);
+        });
+    }, [currentUser, socket]);
+
+    useEffect(() => {
+        messageRef?.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
+
+    useEffect(() => {
+        socket?.on("isTyping", ({ senderId }) => {
+            if (senderId === activeUser?.id) {
+                setTyping(true);
+                setTimeout(() => setTyping(false), 3000); // Reset typing after 3 seconds
+            }
+        });
+    }, [activeUser, socket]);
+
     const navigate = useNavigate();
 
     const fetchCurrentUser = async () => {
@@ -89,13 +122,14 @@ export default function Dashboard() {
     }, [activeUser, currentUser]);
 
     const fetchMessages = useCallback(async () => {
+        if (!conversationId) return; // Return early if conversationId is null
         try {
             const token = localStorage.getItem("chat_user_tkn");
             const response = await axios.get(
                 `http://localhost:3001/message/${conversationId}`,
                 {
                     headers: {
-                        Authorization: ` Bearer ${token}`,
+                        Authorization: `Bearer ${token}`,
                     },
                 }
             );
@@ -135,36 +169,31 @@ export default function Dashboard() {
         setConversationId(null);
     }, [activeUser]);
 
+    // Typing indicator for the person you're chatting with
     const handleTyping = () => {
-        if (activeUser) {
-            const updatedContacts = users.map((contact) =>
-                contact.id === activeUser.id
-                    ? { ...contact, typing: true }
-                    : contact
-            );
-            setUsers(updatedContacts);
-            setTimeout(() => {
-                const resetContacts = updatedContacts.map((contact) =>
-                    contact.id === activeUser.id
-                        ? { ...contact, typing: false }
-                        : contact
-                );
-                setUsers(resetContacts);
-            }, 3000); // Adjust delay as necessary
-        }
+        if (!currentUser || !activeUser) return;
+        socket?.emit("typing", {
+            senderId: currentUser.id,
+            receiverId: activeUser.id,
+        });
     };
 
     const handleSendMessage = async () => {
         if (message.trim() === "") return;
-
         try {
+            socket?.emit("sendMessage", {
+                senderId: currentUser,
+                receiverId: activeUser.id,
+                content: message,
+                conversationId,
+            });
             const token = localStorage.getItem("chat_user_tkn");
             const response = await axios.post(
                 "http://localhost:3001/message",
                 {
                     senderId: currentUser,
                     receiverId: activeUser.id,
-                    message,
+                    content: message,
                     conversationId,
                 },
                 {
@@ -173,6 +202,7 @@ export default function Dashboard() {
                     },
                 }
             );
+            console.log("Messages: ", messages);
             setMessages([...messages, response.data]);
             setMessage("");
         } catch (error) {
@@ -219,7 +249,7 @@ export default function Dashboard() {
                                         : "bg-secondary"
                                 }`}
                             >
-                                <div className="flex justify-start items-center m-4">
+                                <div className="flex justify-start items-center my-4">
                                     <div className="border-primary rounded-full">
                                         <img
                                             className="rounded-full"
@@ -249,7 +279,6 @@ export default function Dashboard() {
                 <div className="flex flex-row justify-center sticky bottom-0 bg-secondary p-4 z-10 items-center border-t-2">
                     <Button
                         label="Log Out"
-                        className="w-full"
                         onClick={() => {
                             localStorage.removeItem("chat_user_tkn");
                             setCurrentUser(null); // Clear currentUser on logout
@@ -284,7 +313,7 @@ export default function Dashboard() {
                                 </span>
                             </p>
                             <p className="text-xs font-normal italic text-gray-500">
-                                {activeUser.typing ? "typing..." : ""}
+                                {typing ? "Typing..." : "Online"}
                             </p>
                         </div>
                     </div>
@@ -303,10 +332,11 @@ export default function Dashboard() {
                                         >
                                             {conversation.content}
                                         </div>
+                                        <div ref={messageRef}></div>
                                     </div>
                                 ))
                             ) : (
-                                <p className="text-black">
+                                <p className="flex justify-center text-center items-center text-black">
                                     No conversations yet.
                                 </p>
                             )}
@@ -320,7 +350,12 @@ export default function Dashboard() {
                             value={message}
                             onChange={(e) => {
                                 setMessage(e.target.value);
-                                handleTyping(); // Trigger typing indicator
+                                handleTyping();
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    handleSendMessage();
+                                }
                             }}
                             className="w-full max-w-full border rounded h-10 p-2 my-2 focus:outline-primary"
                         />

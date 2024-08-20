@@ -5,6 +5,77 @@ require("dotenv").config();
 
 const authorize = require("./middleware/auth");
 
+const { Server } = require("socket.io");
+const io = new Server({
+    cors: {
+        origin: "http://localhost:5173",
+    },
+});
+
+io.on("connection", (socket) => {
+    console.log("User connected", socket.id);
+
+    socket.on("userAdded", (user) => {
+        console.log("New user added:", user);
+    });
+});
+
+io.listen(3003);
+
+// Socket.io
+let users = [];
+io.on("connection", (socket) => {
+    console.log("User connected", socket.id);
+
+    socket.on("addUser", (currentUser) => {
+        const existingUser = users.find((user) => user.userId === currentUser);
+        if (!existingUser) {
+            const user = {
+                userId: currentUser,
+                socketId: socket.id,
+                active: true,
+            };
+            users.push(user);
+            io.emit("getUsers", users);
+        } else {
+            existingUser.socketId = socket.id;
+            existingUser.active = true;
+            io.emit("getUsers", users);
+        }
+    });
+
+    socket.on(
+        "sendMessage",
+        async ({ senderId, receiverId, content, conversationId }) => {
+            const receiver = users.find((user) => user.userId === receiverId);
+            if (receiver) {
+                io.to(receiver.socketId).emit("getMessage", {
+                    senderId,
+                    content,
+                    conversationId,
+                });
+            }
+        }
+    );
+
+    socket.on("typing", ({ senderId, receiverId }) => {
+        const receiver = users.find((user) => user.userId === receiverId);
+        if (receiver) {
+            io.to(receiver.socketId).emit("isTyping", { senderId });
+        }
+    });
+
+    socket.on("disconnect", () => {
+        console.log("User disconnected", socket.id);
+        users = users.filter((user) => user.socketId !== socket.id);
+        io.emit("getUsers", users);
+    });
+
+    socket.on("error", (error) => {
+        console.error("Socket error:", error);
+    });
+});
+
 const cors = require("cors");
 
 // JWT secret key
