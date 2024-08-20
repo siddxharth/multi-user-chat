@@ -1,113 +1,182 @@
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import User from "../../assets/user.svg";
 import Input from "../../components/Input/Input";
 import Button from "../../components/Button/Button";
 import { useNavigate } from "react-router-dom";
-
-const contactsStorage = [
-    {
-        id: 1,
-        name: "Jonesy Doe",
-        active: true,
-        image: User,
-        typing: false,
-    },
-    {
-        id: 2,
-        name: "Jane Doe",
-        active: false,
-        image: User,
-        typing: false,
-    },
-    {
-        id: 3,
-        name: "Summer Doe",
-        active: true,
-        image: User,
-        typing: false,
-    },
-    {
-        id: 4,
-        name: "James Doe",
-        active: false,
-        image: User,
-        typing: false,
-    },
-    {
-        id: 5,
-        name: "Domino",
-        active: false,
-        image: User,
-        typing: false,
-    },
-    {
-        id: 6,
-        name: "Deadpool",
-        active: false,
-        image: User,
-        typing: false,
-    },
-    {
-        id: 7,
-        name: "Spiderman",
-        active: true,
-        image: User,
-        typing: false,
-    },
-    {
-        id: 8,
-        name: "James Doe",
-        active: false,
-        image: User,
-        typing: false,
-    },
-    {
-        id: 9,
-        name: "Domino",
-        active: false,
-        image: User,
-        typing: false,
-    },
-    {
-        id: 10,
-        name: "Deadpool",
-        active: false,
-        image: User,
-        typing: false,
-    },
-    {
-        id: 11,
-        name: "Spiderman",
-        active: true,
-        image: User,
-        typing: false,
-    },
-];
+import axios from "axios";
+import { jwtDecode } from "jwt-decode"; // Corrected import
 
 export default function Dashboard() {
-    const navigate = useNavigate();
     const [search, setSearch] = useState("");
     const [message, setMessage] = useState("");
-    const [contacts, setContacts] = useState(contactsStorage);
+    const [users, setUsers] = useState([]);
     const [activeUser, setActiveUser] = useState(null);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [conversationId, setConversationId] = useState(null);
+    const [messages, setMessages] = useState([]);
+    const navigate = useNavigate();
 
-    // Typing indicator logic
+    const fetchCurrentUser = async () => {
+        try {
+            const token = localStorage.getItem("chat_user_tkn");
+            if (token) {
+                const decodedToken = jwtDecode(token);
+                const userId = decodedToken.userId;
+                setCurrentUser(userId);
+                console.log("Current User ID: ", userId);
+            }
+        } catch (error) {
+            console.error("Error decoding token: ", error);
+        }
+    };
+
+    const fetchUsers = async () => {
+        try {
+            const token = localStorage.getItem("chat_user_tkn");
+            const response = await axios.get("http://localhost:3001/users", {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            const filteredUsers = response.data.filter(
+                (user) => user.id !== currentUser
+            );
+            setUsers(filteredUsers);
+        } catch (error) {
+            console.error("Error fetching users: ", error);
+        }
+    };
+
+    const fetchConversations = useCallback(async () => {
+        if (!activeUser || !currentUser) return;
+        try {
+            const token = localStorage.getItem("chat_user_tkn");
+            const response = await axios.get(
+                `http://localhost:3001/conversation/${currentUser}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            // Map activeUser to sender_id or receiver_id and currentUser to the opposite
+            const conversation = response.data.find((conv) => {
+                return (
+                    (conv.sender_id === currentUser &&
+                        conv.receiver_id === activeUser.id) ||
+                    (conv.receiver_id === currentUser &&
+                        conv.sender_id === activeUser.id)
+                );
+            });
+
+            if (conversation) {
+                setConversationId(conversation.id);
+                // Fetch messages for the conversation
+                const messagesResponse = await axios.get(
+                    `http://localhost:3001/conversation/${conversation.id}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
+                );
+                setMessages(messagesResponse.data);
+            }
+        } catch (error) {
+            console.error("Error fetching conversations: ", error);
+        }
+    }, [activeUser, currentUser]);
+
+    const fetchMessages = useCallback(async () => {
+        try {
+            const token = localStorage.getItem("chat_user_tkn");
+            const response = await axios.get(
+                `http://localhost:3001/message/${conversationId}`,
+                {
+                    headers: {
+                        Authorization: ` Bearer ${token}`,
+                    },
+                }
+            );
+            setMessages(response.data);
+        } catch (error) {
+            console.error("Error while fetching messages: ", error);
+        }
+    }, [conversationId]);
+
+    useEffect(() => {
+        fetchCurrentUser();
+    }, []);
+
+    useEffect(() => {
+        if (currentUser) {
+            fetchUsers();
+            setMessages([]); // Clear messages when currentUser changes
+            setConversationId(null); // Clear conversationId when currentUser changes
+        }
+    }, [currentUser]);
+
+    useEffect(() => {
+        fetchConversations();
+    }, [activeUser, fetchConversations]);
+
+    useEffect(() => {
+        fetchMessages();
+    }, [conversationId, fetchMessages]);
+
+    useEffect(() => {
+        console.log(messages);
+    }, [messages]);
+
+    // Reset messages when activeUser changes
+    useEffect(() => {
+        setMessages([]);
+        setConversationId(null);
+    }, [activeUser]);
+
     const handleTyping = () => {
         if (activeUser) {
-            const updatedContacts = contacts.map((contact) =>
+            const updatedContacts = users.map((contact) =>
                 contact.id === activeUser.id
                     ? { ...contact, typing: true }
                     : contact
             );
-            setContacts(updatedContacts);
+            setUsers(updatedContacts);
             setTimeout(() => {
                 const resetContacts = updatedContacts.map((contact) =>
                     contact.id === activeUser.id
                         ? { ...contact, typing: false }
                         : contact
                 );
-                setContacts(resetContacts);
+                setUsers(resetContacts);
             }, 3000); // Adjust delay as necessary
+        }
+    };
+
+    const handleSendMessage = async () => {
+        if (message.trim() === "") return;
+
+        try {
+            const token = localStorage.getItem("chat_user_tkn");
+            const response = await axios.post(
+                "http://localhost:3001/message",
+                {
+                    senderId: currentUser,
+                    receiverId: activeUser.id,
+                    message,
+                    conversationId,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+            setMessages([...messages, response.data]);
+            setMessage("");
+        } catch (error) {
+            console.error("Error sending message:", error);
         }
     };
 
@@ -124,22 +193,22 @@ export default function Dashboard() {
                         className="w-full border rounded h-10 p-2 my-2 focus:outline-primary"
                     />
                     <h1 className="text-xl text-left font-medium text-primary">
-                        Messages
+                        Users
                     </h1>
                 </div>
                 <div className="flex-1 px-2 overflow-y-auto">
-                    {contacts
+                    {users
                         .filter((contact) =>
                             contact.name
                                 .toLowerCase()
                                 .includes(search.toLowerCase())
                         )
-                        .map(({ id, name, active, image }) => (
+                        .map(({ id, name, active }) => (
                             <div
                                 key={id}
                                 onClick={() => {
                                     setActiveUser(
-                                        contacts.find(
+                                        users.find(
                                             (contact) => contact.id === id
                                         )
                                     );
@@ -154,7 +223,7 @@ export default function Dashboard() {
                                     <div className="border-primary rounded-full">
                                         <img
                                             className="rounded-full"
-                                            src={image}
+                                            src={User}
                                             width={50}
                                             height={50}
                                         />
@@ -183,6 +252,10 @@ export default function Dashboard() {
                         className="w-full"
                         onClick={() => {
                             localStorage.removeItem("chat_user_tkn");
+                            setCurrentUser(null); // Clear currentUser on logout
+                            setUsers([]); // Clear users on logout
+                            setMessages([]); // Clear messages on logout
+                            setConversationId(null); // Clear conversationId on logout
                             navigate("/login");
                         }}
                     />
@@ -193,7 +266,7 @@ export default function Dashboard() {
                     <div className="flex flex-row items-center bg-secondary px-2">
                         <img
                             className="rounded-full"
-                            src={activeUser.image}
+                            src={User}
                             width={50}
                             height={50}
                         />
@@ -215,40 +288,47 @@ export default function Dashboard() {
                             </p>
                         </div>
                     </div>
-                    <div className="h-full bg-white overflow-scroll">
+                    <div className="h-full bg-white text-black overflow-scroll">
                         <div className="px-10 py-14">
-                            {/* Example messages */}
-                            <div className="max-w-[40%] bg-secondary text-black rounded-b-xl rounded-tr-xl mr-auto p-4 my-2">
-                                Hi Samaira!!!
-                            </div>
-                            <div className="max-w-[40%] bg-secondary text-black rounded-b-xl rounded-tr-xl mr-auto p-4 my-2">
-                                Lorem ipsum dolor sit amet consectetur
-                                adipisicing elit.
-                            </div>
-                            <div className="max-w-[60%] bg-primary-light text-white rounded-bl-xl rounded-t-xl ml-auto p-4 my-2">
-                                Hey Spidey!
-                            </div>
-                            <div className="max-w-[60%] bg-primary-light text-white rounded-bl-xl rounded-t-xl ml-auto p-4 my-2">
-                                Lorem ipsum dolor sit amet consectetur
-                                adipisicing elit.
-                            </div>
+                            {messages.length > 0 ? (
+                                messages.map((conversation) => (
+                                    <div key={conversation.id}>
+                                        <div
+                                            className={`${
+                                                conversation.sender_id ==
+                                                currentUser
+                                                    ? "max-w-[60%] bg-primary-light text-white rounded-bl-xl rounded-t-xl ml-auto p-4 my-2"
+                                                    : "max-w-[40%] bg-secondary text-black rounded-b-xl rounded-tr-xl mr-auto p-4 my-2"
+                                            }`}
+                                        >
+                                            {conversation.content}
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-black">
+                                    No conversations yet.
+                                </p>
+                            )}
                         </div>
                     </div>
-                    <div className="px-2">
+                    <div className="flex justify-center items-center gap-2">
                         <hr />
-                        <div className="flex items-center px-2">
-                            <Input
-                                type="text"
-                                placeholder="Type your message..."
-                                value={message}
-                                onChange={(e) => {
-                                    setMessage(e.target.value);
-                                    handleTyping(); // Trigger typing indicator
-                                }}
-                                className="w-full border rounded h-10 p-2 my-2 focus:outline-primary"
-                            />
-                            <Button label="Send" className="ml-2" />
-                        </div>
+                        <Input
+                            type="text"
+                            placeholder="Type your message..."
+                            value={message}
+                            onChange={(e) => {
+                                setMessage(e.target.value);
+                                handleTyping(); // Trigger typing indicator
+                            }}
+                            className="w-full max-w-full border rounded h-10 p-2 my-2 focus:outline-primary"
+                        />
+                        <Button
+                            label="Send"
+                            onClick={handleSendMessage}
+                            className="w-full max-w-fit"
+                        />
                     </div>
                 </div>
             ) : (

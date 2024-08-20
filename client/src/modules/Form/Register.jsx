@@ -4,7 +4,7 @@ import axios from "axios"; // Import Axios
 import Button from "../../components/Button/Button";
 import Input from "../../components/Input/Input";
 
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 
 export default function Form() {
     const [data, setData] = useState({
@@ -12,7 +12,7 @@ export default function Form() {
         username: "",
         password: "",
     });
-
+    const navigate = useNavigate("");
     async function handleRegistration(e) {
         e.preventDefault();
         try {
@@ -26,6 +26,7 @@ export default function Form() {
             );
 
             console.log("Registration successful:", response.data);
+            navigate("/login");
             // Optionally redirect or update UI on successful registration
         } catch (error) {
             if (error.response) {

@@ -3,6 +3,8 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 require("dotenv").config();
 
+const authorize = require("./middleware/auth");
+
 const cors = require("cors");
 
 // JWT secret key
@@ -18,7 +20,7 @@ app.get("/", (req, res) => {
     return res.send("Hello world!");
 });
 
-app.get("/users", async (req, res) => {
+app.get("/users", authorize, async (req, res) => {
     try {
         // Query the database
         const result = await pool.query("SELECT * FROM users");
@@ -100,7 +102,7 @@ app.post("/login", async (req, res) => {
 
         // Create a JWT token
         const token = jwt.sign({ userId: user.rows[0].id }, JWT_SECRET, {
-            expiresIn: "1h",
+            expiresIn: "1d",
         });
 
         res.status(200).json({ token });
@@ -110,14 +112,31 @@ app.post("/login", async (req, res) => {
     }
 });
 
-app.post("/conversation", async (req, res) => {
+// Validate token
+app.post("/validate-token", (req, res) => {
+    const token = req.headers.authorization?.split(" ")[1];
+
+    if (!token) {
+        return res.status(401).json({ message: "No token provided" });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(401).json({ message: "Invalid token" });
+        }
+
+        return res.status(200).json({ message: "Token is valid" });
+    });
+});
+
+app.post("/conversation", authorize, async (req, res) => {
     try {
         const { senderId, receiverId } = req.body;
 
         // Ensure both senderId and receiverId are provided
         if (!senderId || !receiverId) {
             return res
-                .status(400)
+                .status(200)
                 .json({ message: "Both senderId and receiverId are required" });
         }
 
@@ -148,7 +167,7 @@ app.post("/conversation", async (req, res) => {
     }
 });
 
-app.get("/conversation/:userId", async (req, res) => {
+app.get("/conversation/:userId", authorize, async (req, res) => {
     try {
         const { userId } = req.params;
 
@@ -166,7 +185,7 @@ app.get("/conversation/:userId", async (req, res) => {
 
         if (userConversations.rows.length === 0) {
             return res
-                .status(404)
+                .status(200)
                 .json({ message: "No conversations found for this user" });
         }
 
@@ -174,6 +193,63 @@ app.get("/conversation/:userId", async (req, res) => {
         return res.status(200).json(userConversations.rows);
     } catch (error) {
         console.error("Error fetching conversations:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+app.post("/message", authorize, async (req, res) => {
+    try {
+        const { conversationId, senderId, content } = req.body;
+
+        // Validate the input
+        if (!conversationId || !senderId || !content) {
+            return res.status(200).json({
+                message: "conversationId, senderId, and content are required",
+            });
+        }
+
+        // Insert the new message into the Messages table
+        const newMessage = await pool.query(
+            `INSERT INTO Messages (conversation_id, sender_id, content) 
+             VALUES ($1, $2, $3) RETURNING *`,
+            [conversationId, senderId, content]
+        );
+
+        // Return the newly created message
+        return res.status(201).json(newMessage.rows[0]);
+    } catch (error) {
+        console.error("Error sending message:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+app.get("/message/:conversationId", authorize, async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+
+        // Validate the input
+        if (!conversationId) {
+            return res
+                .status(200)
+                .json({ message: "conversationId is required" });
+        }
+
+        // Query to get all messages for the specific conversation
+        const messages = await pool.query(
+            `SELECT * FROM Messages WHERE conversation_id = $1 ORDER BY created_at ASC`,
+            [conversationId]
+        );
+
+        if (messages.rows.length === 0) {
+            return res
+                .status(404)
+                .json({ message: "No messages found for this conversation" });
+        }
+
+        // Return the messages
+        return res.status(200).json(messages.rows);
+    } catch (error) {
+        console.error("Error retrieving messages:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 });
