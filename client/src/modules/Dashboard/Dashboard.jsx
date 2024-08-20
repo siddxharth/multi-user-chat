@@ -288,7 +288,7 @@ export default function Dashboard() {
             </div>
             {activeUser ? (
                 <div className="w-3/4 h-screen bg-white flex flex-col items-left">
-                    <div className="flex flex-row items-center bg-secondary px-2">
+                    <div className="flex flex-row items-center h-[100px] bg-secondary px-2">
                         <img
                             className="rounded-full"
                             src={User}
@@ -309,7 +309,7 @@ export default function Dashboard() {
                                 </span>
                             </p>
                             <p className="text-xs font-normal italic text-gray-500">
-                                {typing ? "Typing..." : "Online"}
+                                {typing ? "Typing..." : ""}
                             </p>
                         </div>
                     </div>
