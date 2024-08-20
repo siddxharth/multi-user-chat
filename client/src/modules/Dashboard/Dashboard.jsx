@@ -233,7 +233,7 @@ export default function Dashboard() {
                                 .toLowerCase()
                                 .includes(search.toLowerCase())
                         )
-                        .map(({ id, name, active }) => (
+                        .map(({ id, name, username }) => (
                             <div
                                 key={id}
                                 onClick={() => {
@@ -263,13 +263,9 @@ export default function Dashboard() {
                                             {name}
                                         </h3>
                                         <p
-                                            className={`text-xs font-normal italic ${
-                                                active
-                                                    ? "text-green-500"
-                                                    : "text-red-500"
-                                            }`}
+                                            className={`text-xs font-normal italic`}
                                         >
-                                            {active ? "Online" : "Offline"}
+                                            @{username}
                                         </p>
                                     </div>
                                 </div>
@@ -342,8 +338,7 @@ export default function Dashboard() {
                             )}
                         </div>
                     </div>
-                    <div className="flex justify-center items-center gap-2">
-                        <hr />
+                    <div className="flex justify-center items-center gap-2 w-full px-4">
                         <Input
                             type="text"
                             placeholder="Type your message..."
@@ -357,7 +352,7 @@ export default function Dashboard() {
                                     handleSendMessage();
                                 }
                             }}
-                            className="w-full max-w-full border rounded h-10 p-2 my-2 focus:outline-primary"
+                            className="w-full border rounded h-10 p-2 my-2 focus:outline-primary"
                         />
                         <Button
                             label="Send"
