@@ -95,11 +95,11 @@ A chat app built using ReactJS, Tailwind CSS, NodeJs, ExpressJs, Socket.IO, and 
 - Open your browser and go to `http://localhost:5173` to access the website.
 
 ## Screenshots
-![Registration Page](./screenshots/login.png)
-*Registration Page*
-
-![Login Page](./screenshots/register.png)
+![Login Page](./screenshots/login.png)
 *Login Page*
+
+![Registration Page](./screenshots/register.png)
+*Registration Page*
 
 ![Side by side chat sessions](./screenshots/chats.png)
 *Side by side chat sessions*
